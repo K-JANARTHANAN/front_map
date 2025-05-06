@@ -1,5 +1,180 @@
+// // MapComponent.jsx
+// import React, { useEffect, useState } from "react";
+// import L from "leaflet";
+// import "leaflet/dist/leaflet.css";
+// import teaIcon from "./tea.png";
+// import constructionIcon from "./construction.png";
+// import electricalIcon from "./electrical-service.png";
+// import plumbingIcon from "./plumbering.png";
+// import "./App.css";
+
+// const MapComponent = () => {
+//   const [map, setMap] = useState(null);
+//   const [markers, setMarkers] = useState([]);
+//   const [showSidebar, setShowSidebar] = useState(false);
+//   const [formData, setFormData] = useState({
+//     lat: null,
+//     lng: null,
+//     jobType: "farm work",
+//     duration: "",
+//     salary: "",
+//   });
+
+//   // Load saved markers
+//   useEffect(() => {
+//     const saved = JSON.parse(localStorage.getItem("markers")) || [];
+//     setMarkers(saved);
+//   }, []);
+
+//   // Initialize map and render markers
+//   useEffect(() => {
+//     if (!map) {
+//       const mapInstance = L.map("map").setView([12.9716, 77.5946], 13);
+//       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+//         attribution:
+//           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+//       }).addTo(mapInstance);
+//       setMap(mapInstance);
+//     } else {
+//       // remove all Markers (preserve tile layer)
+//       map.eachLayer(layer => {
+//         if (layer instanceof L.Marker) map.removeLayer(layer);
+//       });
+
+//       // add each marker
+//       markers.forEach(m => addMarkerToMap(m, map));
+
+//       // double-click to open add form
+//       map.off("dblclick").on("dblclick", e => {
+//         setFormData({
+//           lat: e.latlng.lat,
+//           lng: e.latlng.lng,
+//           jobType: "farm work",
+//           duration: "",
+//           salary: "",
+//         });
+//         setShowSidebar(true);
+//       });
+//     }
+//   }, [map, markers]);
+
+//   // pick icon
+//   const getJobIcon = type => {
+//     switch (type) {
+//       case "farm work":
+//         return teaIcon;
+//       case "mason":
+//         return constructionIcon;
+//       case "electrician":
+//         return electricalIcon;
+//       case "plumbing":
+//         return plumbingIcon;
+//       default:
+//         return teaIcon;
+//     }
+//   };
+
+//   const createCustomIcon = jobType =>
+//     L.icon({
+//       iconUrl: getJobIcon(jobType),
+//       iconSize: [32, 32],
+//       iconAnchor: [16, 32],
+//       popupAnchor: [0, -32],
+//     });
+
+//   // add marker + bindPopup
+//   const addMarkerToMap = (marker, mapInstance) => {
+//     const { lat, lng, jobType, duration, salary } = marker;
+//     const m = L.marker([lat, lng], { icon: createCustomIcon(jobType) }).addTo(
+//       mapInstance
+//     );
+//     // bind popup content
+//     m.bindPopup(
+//       `<b>Type of Job:</b> ${jobType}<br/>
+//        <b>Duration:</b> ${duration}<br/>
+//        <b>Salary:</b> ${salary}`
+//     );
+//     // open popup on click
+//     m.on("click", () => m.openPopup());
+//   };
+
+//   // handle form submit
+//   const handleFormSubmit = e => {
+//     e.preventDefault();
+//     const { lat, lng, jobType, duration, salary } = formData;
+//     if (!duration || !salary) {
+//       alert("Please fill in duration and salary.");
+//       return;
+//     }
+//     const newMarker = { lat, lng, jobType, duration, salary };
+//     const updated = [...markers, newMarker];
+//     setMarkers(updated);
+//     localStorage.setItem("markers", JSON.stringify(updated));
+//     setShowSidebar(false);
+//   };
+
+//   return (
+//     <div className="container">
+//       <h2>Double-click on the map to add a marker</h2>
+//       <div id="map" />
+
+//       {showSidebar && (
+//         <div className="sidebar">
+//           <h3>Add Job Details</h3>
+//           <form onSubmit={handleFormSubmit}>
+//             <label>Job Type:</label>
+//             <select
+//               value={formData.jobType}
+//               onChange={e =>
+//                 setFormData({ ...formData, jobType: e.target.value })
+//               }
+//             >
+//               <option value="farm work">Farm Work</option>
+//               <option value="mason">Mason</option>
+//               <option value="electrician">Electrician</option>
+//               <option value="plumbing">Plumbing</option>
+//             </select>
+
+//             <label>Duration:</label>
+//             <input
+//               type="text"
+//               placeholder="e.g. 1 month"
+//               value={formData.duration}
+//               onChange={e =>
+//                 setFormData({ ...formData, duration: e.target.value })
+//               }
+//             />
+
+//             <label>Salary:</label>
+//             <input
+//               type="text"
+//               placeholder="e.g. ₹10000"
+//               value={formData.salary}
+//               onChange={e =>
+//                 setFormData({ ...formData, salary: e.target.value })
+//               }
+//             />
+
+//             <button type="submit">Submit</button>
+//             <button type="button" onClick={() => setShowSidebar(false)}>
+//               Cancel
+//             </button>
+//           </form>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default MapComponent;
+
+
+
+
+
 import React, { useEffect, useState } from "react";
 import L from "leaflet";
+import axios from "axios";
 import "leaflet/dist/leaflet.css";
 import teaIcon from "./tea.png";
 import constructionIcon from "./construction.png";
@@ -7,43 +182,63 @@ import electricalIcon from "./electrical-service.png";
 import plumbingIcon from "./plumbering.png";
 import "./App.css";
 
+const API_URL = "http://localhost:8080/api/markers";
+
 const MapComponent = () => {
   const [map, setMap] = useState(null);
   const [markers, setMarkers] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [formData, setFormData] = useState({
+    lat: null,
+    lng: null,
+    jobType: "farm work",
+    duration: "",
+    salary: "",
+  });
 
-   
+  // 1. Load all markers from backend
   useEffect(() => {
-    const savedMarkers = JSON.parse(localStorage.getItem("markers")) || [];
-    setMarkers(savedMarkers);
+    axios
+      .get(API_URL)
+      .then((res) => setMarkers(res.data))
+      .catch((err) => console.error("Failed to fetch markers:", err));
   }, []);
 
-   
+  // 2. Initialize map & re-render markers on `markers` change
   useEffect(() => {
     if (!map) {
-      const mapInstance = L.map("map").setView([12.9716, 77.5946], 13); // Default to Bangalore
-
+      const mapInstance = L.map("map").setView([12.9716, 77.5946], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(mapInstance);
-
       setMap(mapInstance);
     } else {
-       
-      markers.forEach((marker) => {
-        addMarkerToMap(marker, map);
+      // remove existing markers
+      map.eachLayer((layer) => {
+        if (layer instanceof L.Marker) map.removeLayer(layer);
       });
 
-      // Add double-click event to add new marker
-      map.on("dblclick", (e) => {
-        handleDoubleClick(e.latlng.lat, e.latlng.lng, map);
+      // add all markers from state
+      markers.forEach((m) => addMarkerToMap(m, map));
+
+      // attach dblclick for adding new
+      map.off("dblclick").on("dblclick", (e) => {
+        setFormData({
+          lat: e.latlng.lat,
+          lng: e.latlng.lng,
+          jobType: "farm work",
+          duration: "",
+          salary: "",
+        });
+        setShowSidebar(true);
       });
     }
   }, [map, markers]);
 
-  // Get icon based on job type
-  const getJobIcon = (jobType) => {
-    switch (jobType) {
+  // pick the right icon
+  const getIconUrl = (type) => {
+    switch (type) {
       case "farm work":
         return teaIcon;
       case "mason":
@@ -57,65 +252,93 @@ const MapComponent = () => {
     }
   };
 
-  // Create marker with custom icon
-  const createCustomIcon = (jobType) => {
-    return L.icon({
-      iconUrl: getJobIcon(jobType),
+  const createIcon = (type) =>
+    L.icon({
+      iconUrl: getIconUrl(type),
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32],
     });
-  };
 
-  // Add marker with existing data to the map
+  // add a single marker + bind popup
   const addMarkerToMap = (marker, mapInstance) => {
     const { lat, lng, jobType, duration, salary } = marker;
-
-    L.marker([lat, lng], { icon: createCustomIcon(jobType) })
-      .addTo(mapInstance)
-      .bindPopup(
-        `<b>Type of Job:</b> ${jobType}<br/>
-         <b>Duration:</b> ${duration}<br/>
-         <b>Salary:</b> ${salary}`
-      );
+    const m = L.marker([lat, lng], { icon: createIcon(jobType) }).addTo(
+      mapInstance
+    );
+    m.bindPopup(
+      `<b>Type of Job:</b> ${jobType}<br/><b>Duration:</b> ${duration}<br/><b>Salary:</b> ${salary}`
+    );
+    m.on("click", () => m.openPopup());
   };
 
-  // Handle double-click event to prompt for job details and add marker
-  const handleDoubleClick = (lat, lng, mapInstance) => {
-    const jobType = prompt(
-      "Enter the type of job (farm work, mason, electrician, plumbing):",
-      "farm work"
-    );
-    const duration = prompt("Enter duration of the job (e.g., 1 month):");
-    const salary = prompt("Enter salary for the job:");
-
-    if (jobType && duration && salary) {
-      const newMarker = {
-        lat,
-        lng,
-        jobType,
-        duration,
-        salary,
-      };
-
-      // Save to localStorage
-      const updatedMarkers = [...markers, newMarker];
-      setMarkers(updatedMarkers);
-      localStorage.setItem("markers", JSON.stringify(updatedMarkers));
-
-      // Add marker to the map
-      addMarkerToMap(newMarker, mapInstance);
-    } else {
-      alert("Please fill in all the details to add a marker!");
+  // handle new marker form submission
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const { lat, lng, jobType, duration, salary } = formData;
+    if (!duration || !salary) {
+      return alert("Please fill in duration and salary.");
     }
+
+    axios
+      .post(API_URL, formData)
+      .then((res) => {
+        // append the newly created marker
+        setMarkers((prev) => [...prev, res.data]);
+        setShowSidebar(false);
+      })
+      .catch((err) => console.error("Failed to save marker:", err));
   };
 
   return (
     <div className="container">
-      <h2>Double-click on the map to add a marker with job details</h2>
+      <h2>Double-click on the map to add a marker</h2>
+      <div id="map" />
 
-      {/* Display Map */}
-      <div id="map"></div>
+      {showSidebar && (
+        <div className="sidebar">
+          <h3>Add Job Details</h3>
+          <form onSubmit={handleFormSubmit}>
+            <label>Job Type:</label>
+            <select
+              value={formData.jobType}
+              onChange={(e) =>
+                setFormData({ ...formData, jobType: e.target.value })
+              }
+            >
+              <option value="farm work">Farm Work</option>
+              <option value="mason">Mason</option>
+              <option value="electrician">Electrician</option>
+              <option value="plumbing">Plumbing</option>
+            </select>
+
+            <label>Duration:</label>
+            <input
+              type="text"
+              placeholder="e.g. 1 month"
+              value={formData.duration}
+              onChange={(e) =>
+                setFormData({ ...formData, duration: e.target.value })
+              }
+            />
+
+            <label>Salary:</label>
+            <input
+              type="text"
+              placeholder="e.g. ₹10000"
+              value={formData.salary}
+              onChange={(e) =>
+                setFormData({ ...formData, salary: e.target.value })
+              }
+            />
+
+            <button type="submit">Submit</button>
+            <button type="button" onClick={() => setShowSidebar(false)}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
