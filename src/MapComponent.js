@@ -170,9 +170,7 @@
 
 
 
-
-
-import React, { useEffect, useState } from "react";
+  import React, { useEffect, useState } from "react";
 import L from "leaflet";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
@@ -182,7 +180,8 @@ import electricalIcon from "./electrical-service.png";
 import plumbingIcon from "./plumbering.png";
 import "./App.css";
 
-const API_URL = "http://localhost:8080/api/markers";
+// 🔗 Updated to use Render backend
+const API_URL = "https://backendmap-2-pujn.onrender.com/api/markers";
 
 const MapComponent = () => {
   const [map, setMap] = useState(null);
@@ -196,7 +195,6 @@ const MapComponent = () => {
     salary: "",
   });
 
-  // 1. Load all markers from backend
   useEffect(() => {
     axios
       .get(API_URL)
@@ -204,7 +202,6 @@ const MapComponent = () => {
       .catch((err) => console.error("Failed to fetch markers:", err));
   }, []);
 
-  // 2. Initialize map & re-render markers on `markers` change
   useEffect(() => {
     if (!map) {
       const mapInstance = L.map("map").setView([12.9716, 77.5946], 13);
@@ -214,15 +211,12 @@ const MapComponent = () => {
       }).addTo(mapInstance);
       setMap(mapInstance);
     } else {
-      // remove existing markers
       map.eachLayer((layer) => {
         if (layer instanceof L.Marker) map.removeLayer(layer);
       });
 
-      // add all markers from state
       markers.forEach((m) => addMarkerToMap(m, map));
 
-      // attach dblclick for adding new
       map.off("dblclick").on("dblclick", (e) => {
         setFormData({
           lat: e.latlng.lat,
@@ -236,7 +230,6 @@ const MapComponent = () => {
     }
   }, [map, markers]);
 
-  // pick the right icon
   const getIconUrl = (type) => {
     switch (type) {
       case "farm work":
@@ -260,7 +253,6 @@ const MapComponent = () => {
       popupAnchor: [0, -32],
     });
 
-  // add a single marker + bind popup
   const addMarkerToMap = (marker, mapInstance) => {
     const { lat, lng, jobType, duration, salary } = marker;
     const m = L.marker([lat, lng], { icon: createIcon(jobType) }).addTo(
@@ -272,7 +264,6 @@ const MapComponent = () => {
     m.on("click", () => m.openPopup());
   };
 
-  // handle new marker form submission
   const handleFormSubmit = (e) => {
     e.preventDefault();
     const { lat, lng, jobType, duration, salary } = formData;
@@ -283,7 +274,6 @@ const MapComponent = () => {
     axios
       .post(API_URL, formData)
       .then((res) => {
-        // append the newly created marker
         setMarkers((prev) => [...prev, res.data]);
         setShowSidebar(false);
       })
